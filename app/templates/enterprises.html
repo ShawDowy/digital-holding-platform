@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .factory-card {
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        transition: all 0.3s;
+        overflow: hidden;
+    }
+    
+    .factory-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .factory-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .factory-header h5 {
+        margin: 0;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    /* Type-based accents */
+    .type-mining { border-top: 4px solid #f59e0b; }
+    .type-mining .icon-box { color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+    
+    .type-processing { border-top: 4px solid #0ea5e9; }
+    .type-processing .icon-box { color: #0ea5e9; background: rgba(14, 165, 233, 0.1); }
+
+    .icon-box {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+    
+    .info-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: 600;
+        margin-bottom: 4px;
+        display: block;
+    }
+    
+    .info-value {
+        color: #e2e8f0;
+        font-size: 0.95rem;
+    }
+
+    .btn-view {
+        background: rgba(255,255,255,0.05);
+        color: #94a3b8;
+        border: 1px solid rgba(255,255,255,0.1);
+        transition: all 0.2s;
+    }
+    
+    .btn-view:hover {
+        background: rgba(255,255,255,0.1);
+        color: #fff;
+        border-color: rgba(255,255,255,0.2);
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-building me-2 text-muted"></i>Реестр предприятий</h2>
+    {% if user.role == 'admin' %}
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createEnterpriseModal">
+        <i class="fas fa-plus me-2"></i>Добавить завод
+    </button>
+    {% endif %}
+</div>
+
+<div class="row">
+    {% for ent in enterprises %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card factory-card h-100 {% if ent.type == 'добывающее' %}type-mining{% else %}type-processing{% endif %}">
+            <div class="card-body p-0 d-flex flex-column h-100">
+                <div class="factory-header">
+                    <h5 class="text-white">{{ ent.name }}</h5>
+                    <div class="icon-box">
+                        <i class="fas {% if ent.type == 'добывающее' %}fa-mountain{% else %}fa-industry{% endif %}"></i>
+                    </div>
+                </div>
+                
+                <div class="p-4 flex-grow-1">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <span class="info-label">Тип</span>
+                            <span class="info-value">{{ ent.type|title }}</span>
+                        </div>
+                        <div class="col-6">
+                            <span class="info-label">Регион</span>
+                            <span class="info-value">{{ ent.region }}</span>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <span class="info-label">Описание</span>
+                        <p class="text-muted small mb-0">{{ ent.description }}</p>
+                    </div>
+                </div>
+                
+                <div class="p-3 border-top border-secondary border-opacity-10 bg-black bg-opacity-10">
+                    <a href="/enterprises/{{ ent.id }}" class="btn btn-view w-100">
+                        <i class="fas fa-eye me-2"></i>Активы завода
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-5">
+        <div class="text-muted opacity-50 mb-3">
+            <i class="fas fa-city fa-4x"></i>
+        </div>
+        <h3 class="text-muted">Нет данных</h3>
+        <p class="text-muted">База данных пуста. Добавьте первый завод.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="createEnterpriseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Новое предприятие</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/enterprises" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Название завода</label>
+                        <input type="text" name="name" class="form-control" required placeholder="Например: Металлургический комбинат №5">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Тип предприятия</label>
+                        <select name="type" class="form-select" required>
+                            <option value="добывающее">Добывающее</option>
+                            <option value="перерабатывающее">Перерабатывающее</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Регион</label>
+                        <select name="region" class="form-select" required>
+                            <option value="Урал">Урал</option>
+                            <option value="Сибирь">Сибирь</option>
+                            <option value="Центр">Центр</option>
+                            <option value="Дальний Восток">Дальний Восток</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Описание</label>
+                        <textarea name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Создать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

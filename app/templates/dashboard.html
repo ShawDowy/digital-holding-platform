@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* Custom Dashboard Styles */
+    .stat-card {
+        background: rgba(30, 41, 59, 0.7);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    }
+    
+    .icon-box {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    /* Gradients */
+    .gradient-blue { background: linear-gradient(135deg, #3b82f6, #0ea5e9); box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
+    .gradient-green { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4); }
+    .gradient-orange { background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4); }
+    .gradient-purple { background: linear-gradient(135deg, #8b5cf6, #6366f1); box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4); }
+    
+    /* Text Glows */
+    .text-glow-success { text-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
+    .text-glow-danger { text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
+    .text-glow-primary { text-shadow: 0 0 10px rgba(59, 130, 246, 0.5); }
+
+    /* Badges */
+    .status-badge {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .badge-success-glow { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-warning-glow { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-danger-glow { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-neutral-glow { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+</style>
+
+<!-- Row 1: Key Metrics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted text-uppercase small fw-bold mb-2">Капитализация</h6>
+                        <h2 class="fw-bold mb-0 text-white">${{ "{:,.0f}".format(stats.estimated_value) }}</h2>
+                        <small class="text-success small"><i class="fas fa-arrow-up me-1"></i>+2.4%</small>
+                    </div>
+                    <div class="icon-box gradient-blue text-white">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted text-uppercase small fw-bold mb-2">Оборудование</h6>
+                        <h2 class="display-6 fw-bold mb-0 text-white">{{ stats.equipment }}</h2>
+                        <small class="text-muted small">Единиц техники</small>
+                    </div>
+                    <div class="icon-box gradient-green text-white">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted text-uppercase small fw-bold mb-2">В работе</h6>
+                        <h2 class="display-6 fw-bold mb-0 text-white">{{ stats.orders_active }}</h2>
+                        <small class="text-muted small">Активных заказов</small>
+                    </div>
+                    <div class="icon-box gradient-orange text-white">
+                        <i class="fas fa-hammer"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted text-uppercase small fw-bold mb-2">Склад</h6>
+                        <h2 class="display-6 fw-bold mb-0 text-white">{{ "%.0f"|format(stats.warehouse_total) }}т</h2>
+                        {% if kpi.low_stock > 0 %}
+                        <small class="text-danger small fw-bold"><i class="fas fa-exclamation-circle me-1"></i>Дефицит!</small>
+                        {% else %}
+                        <small class="text-success small">Норма</small>
+                        {% endif %}
+                    </div>
+                    <div class="icon-box gradient-purple text-white">
+                        <i class="fas fa-cubes"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 2: KPIs -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="row g-4">
+            <!-- Quality KPI -->
+            <div class="col-md-6">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-3">
+                            <h6 class="text-muted text-uppercase small fw-bold">Качество исполнения</h6>
+                            <i class="fas fa-check-circle text-success"></i>
+                        </div>
+                        <div class="d-flex align-items-end justify-content-between mb-2">
+                            <h2 class="mb-0 fw-bold {% if kpi.quality >= 90 %}text-success text-glow-success{% else %}text-danger text-glow-danger{% endif %}">
+                                {{ kpi.quality }}%
+                            </h2>
+                            <small class="text-muted">Цель: 95%</small>
+                        </div>
+                        <div class="progress" style="height: 6px; background: rgba(255,255,255,0.1);">
+                            <div class="progress-bar {% if kpi.quality >= 90 %}bg-success{% else %}bg-danger{% endif %}" style="width: {{ kpi.quality }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Efficiency KPI -->
+            <div class="col-md-6">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-3">
+                            <h6 class="text-muted text-uppercase small fw-bold">Эффективность</h6>
+                            <i class="fas fa-bolt text-primary"></i>
+                        </div>
+                        <div class="d-flex align-items-end justify-content-between mb-2">
+                            <h2 class="mb-0 fw-bold text-primary text-glow-primary">
+                                {{ kpi.completion }}%
+                            </h2>
+                            <small class="text-muted">План выполнен</small>
+                        </div>
+                        <div class="progress" style="height: 6px; background: rgba(255,255,255,0.1);">
+                            <div class="progress-bar bg-primary" style="width: {{ kpi.completion }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OTD KPI -->
+            <div class="col-md-6">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-3">
+                            <h6 class="text-muted text-uppercase small fw-bold">Сроки (OTD)</h6>
+                            <i class="fas fa-clock text-warning"></i>
+                        </div>
+                        <div class="d-flex align-items-end justify-content-between mb-2">
+                            {% if kpi.overdue > 0 %}
+                            <h2 class="mb-0 fw-bold text-danger text-glow-danger">{{ kpi.overdue }}</h2>
+                            {% else %}
+                            <h2 class="mb-0 fw-bold text-success text-glow-success">OK</h2>
+                            {% endif %}
+                            <small class="text-muted">Просрочено</small>
+                        </div>
+                        <div class="progress" style="height: 6px; background: rgba(255,255,255,0.1);">
+                            <div class="progress-bar {% if kpi.overdue > 0 %}bg-danger{% else %}bg-success{% endif %}" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Equipment Availability -->
+            <div class="col-md-6">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-3">
+                            <h6 class="text-muted text-uppercase small fw-bold">Доступность оборудования</h6>
+                            <i class="fas fa-tools text-muted"></i>
+                        </div>
+                        <div class="d-flex align-items-end justify-content-between mb-2">
+                            <h2 class="mb-0 fw-bold {% if kpi.availability >= 85 %}text-success text-glow-success{% else %}text-warning{% endif %}">
+                                {{ kpi.availability }}%
+                            </h2>
+                            <small class="text-muted">В строю</small>
+                        </div>
+                        <div class="progress" style="height: 6px; background: rgba(255,255,255,0.1);">
+                            <div class="progress-bar {% if kpi.availability >= 85 %}bg-success{% else %}bg-warning{% endif %}" style="width: {{ kpi.availability }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Column -->
+    <div class="col-md-4">
+        <div class="card stat-card h-100">
+            <div class="card-header border-0 pb-0 pt-3">
+                <h6 class="text-white text-uppercase small fw-bold mb-0">Состояние парка</h6>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center" style="height: 280px; position: relative;">
+                <canvas id="equipmentPolarChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 3: Production Chart & Recent Orders -->
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card stat-card h-100">
+            <div class="card-header border-0 pb-0 pt-3">
+                <h6 class="text-white text-uppercase small fw-bold mb-0">Объемы производства</h6>
+            </div>
+            <div class="card-body" style="height: 300px; position: relative;">
+                <canvas id="productionBarChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card stat-card h-100">
+            <div class="card-header border-0 pb-0 pt-3 d-flex justify-content-between align-items-center">
+                <h6 class="text-white text-uppercase small fw-bold mb-0">Лента событий</h6>
+                <span class="badge bg-dark border border-secondary text-muted">Live</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="--bs-table-bg: transparent; --bs-table-hover-bg: rgba(255,255,255,0.05); color: #f1f5f9;">
+                        <thead>
+                            <tr style="border-color: rgba(255,255,255,0.1);">
+                                <th class="ps-4" style="background: transparent; color: #94a3b8;">ID</th>
+                                <th style="background: transparent; color: #94a3b8;">Продукт</th>
+                                <th class="text-end pe-4" style="background: transparent; color: #94a3b8;">Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody style="border-top: none;">
+                            {% for order in recent_orders %}
+                            <tr style="border-color: rgba(255,255,255,0.05);">
+                                <td class="ps-4 font-monospace text-primary small">#{{ order.order_number.split('-')|last }}</td>
+                                <td class="text-white small">{{ order.product_name }}</td>
+                                <td class="text-end pe-4">
+                                    {% if order.status == 'problem' %}
+                                    <span class="status-badge badge-danger-glow">Проблема</span>
+                                    {% elif order.status == 'completed' %}
+                                    <span class="status-badge badge-success-glow">Готово</span>
+                                    {% elif order.status == 'in_progress' %}
+                                    <span class="status-badge badge-warning-glow">В работе</span>
+                                    {% else %}
+                                    <span class="status-badge badge-neutral-glow">Новый</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 1. Polar Area Chart (Equipment)
+    const ctxPolar = document.getElementById('equipmentPolarChart').getContext('2d');
+    new Chart(ctxPolar, {
+        type: 'polarArea',
+        data: {
+            labels: ['Работает', 'Сломано', 'На ремонте'],
+            datasets: [{
+                data: [{{ status_data.operational }}, {{ status_data.broken }}, {{ status_data.maintenance }}],
+                backgroundColor: [
+                    'rgba(16, 185, 129, 0.6)', // Green
+                    'rgba(239, 68, 68, 0.6)',  // Red
+                    'rgba(245, 158, 11, 0.6)'  // Orange
+                ],
+                borderColor: '#1e293b',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                    ticks: { display: false, backdropColor: 'transparent' }
+                }
+            },
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 }, boxWidth: 10 } }
+            }
+        }
+    });
+
+    // 2. Bar Chart (Production Volume)
+    const ctxBar = document.getElementById('productionBarChart').getContext('2d');
+    new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+            labels: [{% for l in prod_labels %}"{{l}}",{% endfor %}],
+            datasets: [{
+                label: 'Произведено (тонн)',
+                data: [{{ prod_values|join(',') }}],
+                backgroundColor: '#3b82f6',
+                borderRadius: 4,
+                barThickness: 30
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#94a3b8' }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#94a3b8' }
+                }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+</script>
+{% endblock %}

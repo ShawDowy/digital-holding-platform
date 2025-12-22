@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="/enterprises" class="btn btn-outline-secondary mb-3"><i class="fas fa-arrow-left me-2"></i>Назад к списку</a>
+    <h2>{{ enterprise.name }}</h2>
+    <p class="text-muted">{{ enterprise.region }} | {{ enterprise.type }}</p>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Оборудование на заводе</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Тег</th>
+                        <th>Название</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for eq in enterprise.equipment %}
+                    <tr>
+                        <td>{{ eq.tag }}</td>
+                        <td>{{ eq.name }}</td>
+                        <td>
+                            <span class="badge bg-{% if eq.status == 'operational' %}success{% elif eq.status == 'maintenance' %}warning{% else %}danger{% endif %}">
+                                {{ eq.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

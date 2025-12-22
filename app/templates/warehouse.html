@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-boxes me-2"></i>Склад (WMS)</h2>
+    {% if user.role in ['manager', 'admin'] %}
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
+        <i class="fas fa-plus me-2"></i>Приход товара
+    </button>
+    {% endif %}
+</div>
+
+{% if request.query_params.error %}
+<div class="alert alert-danger">{{ request.query_params.error }}</div>
+{% endif %}
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Артикул</th>
+                        <th>Название товара</th>
+                        <th>Количество</th>
+                        <th>Ед. изм.</th>
+                        <th>Цена за ед.</th>
+                        <th>Стоимость</th>
+                        <th>Место хранения</th>
+                        {% if user.role in ['manager', 'admin'] %}
+                        <th>Действия</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td><span class="badge bg-secondary">{{ item.product_code }}</span></td>
+                        <td><strong>{{ item.product_name }}</strong></td>
+                        <td class="fs-5">{{ "%.2f"|format(item.quantity) }}</td>
+                        <td>{{ item.unit }}</td>
+                        <td class="text-muted">${{ "%.2f"|format(item.price) }}</td>
+                        <td class="fw-bold text-success">${{ "{:,.2f}".format(item.total_value) }}</td>
+                        <td><i class="fas fa-map-marker-alt text-muted me-1"></i>{{ item.location }}</td>
+                        {% if user.role in ['manager', 'admin'] %}
+                        <td>
+                            <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#shipItemModal{{ item.id }}" title="Отгрузить">
+                                <i class="fas fa-truck-loading"></i>
+                            </button>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="fas fa-box-open fa-3x mb-3"></i>
+                            <p>Склад пуст. Выполните производственные заказы, чтобы пополнить запасы.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ручное поступление на склад</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/warehouse" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Артикул</label>
+                        <input type="text" name="product_code" class="form-control" required placeholder="ITEM-001">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Название товара</label>
+                        <input type="text" name="product_name" class="form-control" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Количество</label>
+                            <input type="number" step="0.1" min="0.1" name="quantity" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Цена за единицу ($)</label>
+                            <input type="number" step="0.01" min="0" name="price" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Ед. измерения</label>
+                            <select name="unit" class="form-select">
+                                <option value="т">Тонны (т)</option>
+                                <option value="кг">Килограммы (кг)</option>
+                                <option value="шт">Штуки (шт)</option>
+                                <option value="м3">Кубометры (м3)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Место хранения</label>
+                            <input type="text" name="location" class="form-control" placeholder="Сектор А-1">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Ship Item Modals -->
+{% for item in items %}
+<div class="modal fade" id="shipItemModal{{ item.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Отгрузка товара</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/warehouse/{{ item.id }}/ship" method="post">
+                <div class="modal-body">
+                    <p>Товар: <strong>{{ item.product_name }}</strong></p>
+                    <p>Доступно: {{ item.quantity }} {{ item.unit }}</p>
+                    <div class="mb-3">
+                        <label class="form-label">Количество к отгрузке</label>
+                        <input type="number" step="0.1" min="0.1" max="{{ item.quantity }}" name="amount" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-warning">Списать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

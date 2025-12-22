@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-clipboard-list me-2"></i>Производственные заказы (MES)</h2>
+    {% if user.role in ['manager', 'admin'] %}
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createOrderModal">
+        <i class="fas fa-plus me-2"></i>Создать заказ
+    </button>
+    {% endif %}
+</div>
+
+{% if request.query_params.error %}
+<div class="alert alert-danger">{{ request.query_params.error }}</div>
+{% endif %}
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>№ Заказа</th>
+                        <th>Продукт</th>
+                        <th>Кол-во</th>
+                        <th>План. Цена</th>
+                        <th>Срок</th>
+                        <th>Завод</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr class="{% if order.status == 'problem' %}table-danger{% endif %}">
+                        <td><strong>{{ order.order_number }}</strong></td>
+                        <td>
+                            {{ order.product_name }}<br>
+                            <small class="text-muted">{{ order.product_code }}</small>
+                        </td>
+                        <td>{{ order.quantity }} т</td>
+                        <td class="text-muted">${{ order.price_per_unit }}</td>
+                        <td>
+                            {% if order.due_date %}
+                            {{ order.due_date.strftime('%d.%m.%Y') }}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ order.enterprise.name if order.enterprise else '-' }}</td>
+                        <td>
+                            {% if order.status == 'problem' %}
+                            <span class="badge bg-danger p-2" title="{{ order.problem_details }}">
+                                <i class="fas fa-exclamation-triangle me-1"></i>Проблема
+                            </span>
+                            {% else %}
+                            <span class="badge bg-{% if order.status == 'completed' %}success{% elif order.status == 'in_progress' %}warning{% else %}secondary{% endif %} p-2">
+                                {{ order.status }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                {% if order.status != 'completed' and order.status != 'problem' %}
+                                    {% if order.status == 'new' %}
+                                    <form action="/orders/{{ order.id }}/status" method="post">
+                                        <input type="hidden" name="status" value="in_progress">
+                                        <button class="btn btn-outline-primary" title="В работу">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    
+                                    {% if order.status == 'in_progress' %}
+                                    <form action="/orders/{{ order.id }}/status" method="post">
+                                        <input type="hidden" name="status" value="completed">
+                                        <button class="btn btn-outline-success" title="Завершить">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    
+                                    <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#problemModal{{ order.id }}" title="Сообщить о проблеме">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                    </button>
+                                {% endif %}
+                                
+                                {% if user.role in ['manager', 'admin'] %}
+                                    <form action="/orders/{{ order.id }}/delete" method="post" onsubmit="return confirm('Вы уверены?');">
+                                        <button class="btn btn-outline-secondary" title="Удалить заказ">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Create -->
+<div class="modal fade" id="createOrderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Новый производственный заказ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/orders" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Продукт</label>
+                        <input type="text" name="product_name" class="form-control" required placeholder="Например: Железная руда">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Артикул</label>
+                        <input type="text" name="product_code" class="form-control" required placeholder="Например: RAW-001">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Количество (тонн)</label>
+                            <input type="number" step="0.1" min="0.1" name="quantity" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">План. Цена ($/т)</label>
+                            <input type="number" step="0.01" min="0" name="price_per_unit" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Срок сдачи</label>
+                        <input type="date" name="due_date" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Завод-исполнитель</label>
+                        <select name="enterprise_id" class="form-select" required>
+                            {% for ent in enterprises %}
+                            <option value="{{ ent.id }}">{{ ent.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Создать заказ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Problem Modals -->
+{% for order in orders %}
+<div class="modal fade" id="problemModal{{ order.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Сообщить о проблеме</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/orders/{{ order.id }}/problem" method="post">
+                <div class="modal-body">
+                    <p>Заказ: <strong>{{ order.order_number }}</strong></p>
+                    <div class="mb-3">
+                        <label class="form-label">Описание проблемы</label>
+                        <textarea name="problem_details" class="form-control" rows="3" required placeholder="Например: Нет сырья, поломка линии..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-danger">Отправить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}
