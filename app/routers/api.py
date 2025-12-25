@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 import uuid
 
 from app.db.session import get_db
-from app.routers.deps import get_admin_user
+from app.routers.deps import get_admin_user, get_current_active_user
 from app.models.enterprise import Enterprise
 from app.models.equipment import Equipment
 from app.models.order import ProductionOrder
@@ -13,6 +13,28 @@ from app.models.user import User
 from app.core.security import get_password_hash
 
 router = APIRouter()
+
+@router.get("/telemetry")
+async def get_telemetry(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_active_user)
+):
+    equipment_list = db.query(Equipment).order_by(Equipment.last_telemetry_update.desc()).limit(5).all()
+    
+    data = []
+    for eq in equipment_list:
+        data.append({
+            "id": eq.id,
+            "tag": eq.tag,
+            "name": eq.name,
+            "type": eq.type,
+            "status": eq.status,
+            "temperature": round(eq.temperature, 1) if eq.temperature else 0.0,
+            "vibration": round(eq.vibration, 2) if eq.vibration else 0.0,
+            "last_update": eq.last_telemetry_update.strftime('%H:%M:%S') if eq.last_telemetry_update else "N/A"
+        })
+    
+    return JSONResponse(content=data)
 
 @router.post("/init-data")
 async def init_test_data(

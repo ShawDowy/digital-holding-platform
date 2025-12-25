@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="/orders" class="text-decoration-none text-muted mb-2 d-inline-block">
+            <i class="fas fa-arrow-left me-1"></i>К списку заказов
+        </a>
+        <h2><i class="fas fa-tasks me-2"></i>Детали заказа: {{ order.order_number }}</h2>
+    </div>
+    {% if user.role in ['manager', 'admin'] %}
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addOperationModal">
+        <i class="fas fa-plus me-2"></i>Добавить операцию
+    </button>
+    {% endif %}
+</div>
+
+<!-- Order Info Card -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Информация о заказе</span>
+        <span class="badge bg-{% if order.status == 'completed' %}success{% elif order.status == 'in_progress' %}warning{% elif order.status == 'problem' %}danger{% else %}secondary{% endif %}">
+            {{ order.status }}
+        </span>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <small class="text-white-50 d-block">Продукт</small>
+                <strong>{{ order.product_name }}</strong>
+                <div class="small text-white-50">{{ order.product_code }}</div>
+            </div>
+            <div class="col-md-3">
+                <small class="text-white-50 d-block">Количество</small>
+                <strong>{{ order.quantity }} т</strong>
+            </div>
+            <div class="col-md-3">
+                <small class="text-white-50 d-block">Срок</small>
+                <strong>{{ order.due_date.strftime('%d.%m.%Y') if order.due_date else '-' }}</strong>
+            </div>
+            <div class="col-md-3">
+                <small class="text-white-50 d-block">Предприятие</small>
+                <strong>{{ order.enterprise.name if order.enterprise else '-' }}</strong>
+            </div>
+        </div>
+        {% if order.problem_details %}
+        <div class="alert alert-danger mt-3 mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>{{ order.problem_details }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Operations List -->
+<h4 class="mb-3">Производственные операции</h4>
+
+{% if not order.operations %}
+<div class="text-center py-5 text-muted bg-light rounded border border-dashed">
+    <i class="fas fa-cogs fa-3x mb-3 opacity-50"></i>
+    <p>Операции еще не добавлены</p>
+</div>
+{% else %}
+<div class="row">
+    {% for op in order.operations %}
+    <div class="col-12 mb-3">
+        <div class="card border-start border-4 {% if op.status == 'completed' %}border-success{% elif op.status == 'problem' %}border-danger{% elif op.status == 'in_progress' %}border-warning{% else %}border-secondary{% endif %}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="card-title mb-1">{{ op.name }}</h5>
+                        <small class="text-muted">
+                            Статус: 
+                            <span class="text-{% if op.status == 'completed' %}success{% elif op.status == 'problem' %}danger{% elif op.status == 'in_progress' %}warning{% else %}secondary{% endif %} fw-bold">
+                                {{ op.status }}
+                            </span>
+                        </small>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        {% if op.status != 'completed' %}
+                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#updateOpModal{{ op.id }}">
+                            <i class="fas fa-edit me-1"></i>Обновить
+                        </button>
+                        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#defectModal{{ op.id }}">
+                            <i class="fas fa-bug me-1"></i>Брак
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <div class="d-flex justify-content-between small text-muted mb-1">
+                            <span>Выполнение</span>
+                            <span>{{ op.actual_quantity }} / {{ op.planned_quantity }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            {% set percent = (op.actual_quantity / op.planned_quantity * 100) if op.planned_quantity > 0 else 0 %}
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ percent }}%"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-center border-start border-end">
+                        <div class="d-flex flex-column">
+                            <span class="small text-muted">Брак</span>
+                            <span class="h5 text-danger mb-0">{{ op.defect_quantity }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="small text-muted mb-1">Журнал дефектов:</div>
+                        {% if op.defects %}
+                            <ul class="list-unstyled mb-0 small">
+                            {% for defect in op.defects %}
+                                <li class="text-danger">
+                                    <i class="fas fa-times-circle me-1"></i>
+                                    <strong>{{ defect.quantity }}</strong> - {{ defect.reason }} 
+                                    {% if defect.comment %}({{ defect.comment }}){% endif %}
+                                </li>
+                            {% endfor %}
+                            </ul>
+                        {% else %}
+                            <span class="small text-muted fst-italic">Дефектов нет</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Operation Modal -->
+    <div class="modal fade" id="updateOpModal{{ op.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Обновить операцию: {{ op.name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="/operations/{{ op.id }}/update" method="post">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Статус</label>
+                            <select name="status" class="form-select">
+                                <option value="pending" {% if op.status == 'pending' %}selected{% endif %}>Ожидание</option>
+                                <option value="in_progress" {% if op.status == 'in_progress' %}selected{% endif %}>В работе</option>
+                                <option value="completed" {% if op.status == 'completed' %}selected{% endif %}>Завершено</option>
+                                <option value="problem" {% if op.status == 'problem' %}selected{% endif %}>Проблема</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Фактическое количество</label>
+                            <input type="number" step="0.1" name="actual_quantity" class="form-control" value="{{ op.actual_quantity }}">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Defect Modal -->
+    <div class="modal fade" id="defectModal{{ op.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Зафиксировать брак</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="/operations/{{ op.id }}/defect" method="post">
+                    <div class="modal-body">
+                        <p>Операция: <strong>{{ op.name }}</strong></p>
+                        <div class="mb-3">
+                            <label class="form-label">Количество брака</label>
+                            <input type="number" step="0.1" name="quantity" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Причина</label>
+                            <select name="reason" class="form-select" required>
+                                <option value="">Выберите причину...</option>
+                                <option value="Нарушение технологии">Нарушение технологии</option>
+                                <option value="Дефект сырья">Дефект сырья</option>
+                                <option value="Отказ оборудования">Отказ оборудования</option>
+                                <option value="Человеческий фактор">Человеческий фактор</option>
+                                <option value="Другое">Другое</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Комментарий</label>
+                            <textarea name="comment" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-danger">Зафиксировать</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Add Operation Modal -->
+<div class="modal fade" id="addOperationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить операцию</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/orders/{{ order.id }}/operations" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Название операции</label>
+                        <input type="text" name="name" class="form-control" required placeholder="Например: Покраска">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Плановое количество</label>
+                        <input type="number" step="0.1" name="planned_quantity" class="form-control" value="{{ order.quantity }}" required>
+                        <div class="form-text">По умолчанию равно количеству в заказе</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+

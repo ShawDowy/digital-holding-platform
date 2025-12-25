@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, ForeignKey, DateTime
+from sqlalchemy import Column, String, ForeignKey, DateTime, Float
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 from datetime import datetime
@@ -14,6 +14,12 @@ class Equipment(Base):
     status = Column(String(50), default="operational")  # operational, broken, maintenance
     last_maintenance = Column(DateTime, default=datetime.now)
     
+    # IoT Telemetry Data
+    temperature = Column(Float, default=0.0)
+    vibration = Column(Float, default=0.0)
+    last_telemetry_update = Column(DateTime, nullable=True)
+    
     enterprise_id = Column(String, ForeignKey("enterprises.id"))
     enterprise = relationship("Enterprise", back_populates="equipment")
-
+    
+    repairs = relationship("RepairLog", back_populates="equipment", cascade="all, delete-orphan")

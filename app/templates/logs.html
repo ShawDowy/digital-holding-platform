@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-history me-2"></i>Журнал событий системы</h2>
+        <p class="text-white-50 mb-0">Полный аудит действий пользователей и системных событий</p>
+    </div>
+    <div>
+        <button class="btn btn-outline-secondary btn-sm" onclick="window.location.reload();">
+            <i class="fas fa-sync-alt me-1"></i>Обновить
+        </button>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body py-3">
+        <form action="/logs" method="get" class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label class="col-form-label text-white-50"><i class="fas fa-filter me-2"></i>Фильтры:</label>
+            </div>
+            <div class="col-auto">
+                <select name="module" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="ALL">Все модули</option>
+                    {% for m in modules %}
+                    <option value="{{ m }}" {% if selected_module == m %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <input type="text" name="user_search" class="form-control form-control-sm" placeholder="Поиск по пользователю..." value="{{ user_search or '' }}">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary btn-sm">Найти</button>
+            </div>
+            {% if selected_module or user_search %}
+            <div class="col-auto">
+                <a href="/logs" class="text-muted small text-decoration-none"><i class="fas fa-times me-1"></i>Сбросить</a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Logs Table -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem; --bs-table-bg: transparent; --bs-table-hover-bg: rgba(255,255,255,0.05); color: #f1f5f9;">
+                <thead>
+                    <tr style="border-color: rgba(255,255,255,0.1);">
+                        <th class="ps-3" style="width: 150px; background: transparent; color: #94a3b8;">Время</th>
+                        <th style="width: 100px; background: transparent; color: #94a3b8;">Модуль</th>
+                        <th style="width: 150px; background: transparent; color: #94a3b8;">Действие</th>
+                        <th style="width: 150px; background: transparent; color: #94a3b8;">Пользователь</th>
+                        <th style="background: transparent; color: #94a3b8;">Детали</th>
+                        <th style="width: 50px; background: transparent;"></th>
+                    </tr>
+                </thead>
+                <tbody style="border-top: none;">
+                    {% for log in logs %}
+                    <tr class="cursor-pointer" style="border-color: rgba(255,255,255,0.05);">
+                        <td class="ps-3 text-nowrap text-white-50 font-monospace small">
+                            {{ log.timestamp.strftime('%d.%m.%Y') }}<br>
+                            <span class="text-white">{{ log.timestamp.strftime('%H:%M:%S') }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 w-100">
+                                {{ log.module }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="fw-bold {% if log.action == 'ERROR' or log.action == 'DELETE' %}text-danger{% elif log.action == 'CREATE' %}text-success{% elif log.action == 'UPDATE' %}text-primary{% else %}text-white{% endif %}">
+                                {{ log.action }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="bg-dark rounded-circle d-flex align-items-center justify-content-center me-2 text-white-50 border border-secondary" style="width: 24px; height: 24px; font-size: 0.7rem;">
+                                    {% if log.username %}{{ log.username[0]|upper }}{% else %}S{% endif %}
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-white">{{ log.username or 'System' }}</div>
+                                    <div class="text-white-50" style="font-size: 0.7rem;">{{ log.role or 'system' }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-white-50 text-truncate" style="max-width: 300px;">
+                            {{ log.details }}
+                        </td>
+                        <td class="text-end pe-3">
+                            <button class="btn btn-sm btn-link text-white-50" data-bs-toggle="modal" data-bs-target="#logModal{{ log.id }}">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    
+                    <!-- Detail Modal -->
+                    <div class="modal fade" id="logModal{{ log.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content" style="background-color: #1e293b; color: #f1f5f9; border: 1px solid #334155;">
+                                <div class="modal-header" style="border-bottom: 1px solid #334155;">
+                                    <h5 class="modal-title">Детали события</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-4 text-white-50">ID события</dt>
+                                        <dd class="col-sm-8 font-monospace small text-white-50">{{ log.id }}</dd>
+
+                                        <dt class="col-sm-4 text-white-50">Время</dt>
+                                        <dd class="col-sm-8 text-white">{{ log.timestamp.strftime('%d.%m.%Y %H:%M:%S.%f')[:-3] }}</dd>
+
+                                        <dt class="col-sm-4 text-white-50">Модуль</dt>
+                                        <dd class="col-sm-8"><span class="badge bg-secondary">{{ log.module }}</span></dd>
+
+                                        <dt class="col-sm-4 text-white-50">Действие</dt>
+                                        <dd class="col-sm-8 fw-bold text-white">{{ log.action }}</dd>
+
+                                        <hr class="border-secondary my-3" style="border-color: #334155 !important;">
+
+                                        <dt class="col-sm-4 text-white-50">Инициатор</dt>
+                                        <dd class="col-sm-8 text-white">
+                                            {{ log.username or 'System' }} 
+                                            <span class="badge bg-dark border border-secondary ms-2" style="background-color: #0f172a !important; border-color: #334155 !important;">{{ log.role or 'system' }}</span>
+                                        </dd>
+
+                                        <dt class="col-sm-4 text-white-50">Описание</dt>
+                                        <dd class="col-sm-8 bg-dark p-2 rounded border border-secondary font-monospace small text-white" style="background-color: #0f172a !important; border-color: #334155 !important;">
+                                            {{ log.details }}
+                                        </dd>
+                                    </dl>
+                                </div>
+                                <div class="modal-footer" style="border-top: 1px solid #334155;">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -7,14 +7,26 @@ import uvicorn
 
 from app.db.base import Base
 from app.db.session import engine, get_db
-from app.routers import auth, dashboard, enterprises, equipment, orders, warehouse, api, users
+from app.routers import auth, dashboard, enterprises, equipment, orders, warehouse, api, users, logs
 from app.models.user import User
+# Import all models to ensure tables are created
+from app.models.enterprise import Enterprise
+from app.models.order import ProductionOrder
+from app.models.operation import ProductionOperation, DefectLog
+from app.models.repair import RepairLog
+from app.models.log import SystemLog
 from app.core.security import get_password_hash
+from app.core.iot_simulator import start_iot_simulation
 
 # Create tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Цифровая платформа холдинга")
+
+@app.on_event("startup")
+async def startup_event():
+    start_iot_simulation()
+
 
 # Ensure static folder exists
 import os
@@ -31,6 +43,7 @@ app.include_router(equipment.router, tags=["equipment"])
 app.include_router(orders.router, tags=["orders"])
 app.include_router(warehouse.router, tags=["warehouse"])
 app.include_router(users.router, tags=["users"])
+app.include_router(logs.router, tags=["logs"])
 app.include_router(api.router, prefix="/api", tags=["api"])
 
 # Exception Handler for 401 Unauthorized

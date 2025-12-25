@@ -33,7 +33,8 @@
                 <tbody>
                     {% for order in orders %}
                     <tr class="{% if order.status == 'problem' %}table-danger{% endif %}">
-                        <td><strong>{{ order.order_number }}</strong></td>
+                        <td><strong><a href="/orders/{{ order.id }}" class="text-reset text-decoration-none">{{ order.order_number }}</a></strong></td>
+
                         <td>
                             {{ order.product_name }}<br>
                             <small class="text-muted">{{ order.product_code }}</small>

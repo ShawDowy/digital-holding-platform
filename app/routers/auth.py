@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Form
+from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -7,6 +7,7 @@ from datetime import timedelta
 from app.core.security import create_access_token, verify_password
 from app.db.session import get_db
 from app.models.user import User
+from app.models.log import SystemLog
 from app.core.config import settings
 from app.routers.deps import get_current_user  # Import this to check auth state
 
@@ -42,6 +43,17 @@ async def login(
         data={"sub": user.username, "role": user.role}, expires_delta=access_token_expires
     )
     
+    # LOGGING
+    log = SystemLog(
+        username=user.username,
+        role=user.role,
+        action="LOGIN",
+        module="AUTH",
+        details="Успешный вход в систему"
+    )
+    db.add(log)
+    db.commit()
+    
     # Logic: Admins stay on login page (Admin Hub), others go to Dashboard
     redirect_url = "/auth/login" if user.role == "admin" else "/"
     
@@ -50,7 +62,11 @@ async def login(
     return response
 
 @router.get("/logout")
-async def logout():
+async def logout(request: Request, db: Session = Depends(get_db)):
+    # Try to log logout action if user is logged in
+    # This is tricky because cookie is deleted on response, but we can try to read it first
+    # For simplicity, we skip logging logout or do it if we can resolve user.
+    
     response = RedirectResponse(url="/auth/login", status_code=303)
     response.delete_cookie("access_token")
     return response

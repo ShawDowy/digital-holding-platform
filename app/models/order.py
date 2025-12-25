@@ -24,3 +24,5 @@ class ProductionOrder(Base):
     
     enterprise_id = Column(String, ForeignKey("enterprises.id"))
     enterprise = relationship("Enterprise", back_populates="orders")
+    
+    operations = relationship("ProductionOperation", back_populates="order", cascade="all, delete-orphan")

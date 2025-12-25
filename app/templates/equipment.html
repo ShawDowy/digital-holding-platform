@@ -26,7 +26,8 @@
                 <tbody>
                     {% for eq in equipment %}
                     <tr>
-                        <td><strong>{{ eq.tag }}</strong></td>
+                        <td><strong><a href="/equipment/{{ eq.id }}" class="text-reset text-decoration-none">{{ eq.tag }}</a></strong></td>
+
                         <td>{{ eq.name }}</td>
                         <td>{{ eq.enterprise.name if eq.enterprise else '-' }}</td>
                         <td>

@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="/equipment" class="text-decoration-none text-muted mb-2 d-inline-block">
+            <i class="fas fa-arrow-left me-1"></i>К списку оборудования
+        </a>
+        <h2><i class="fas fa-cogs me-2"></i>Карточка оборудования: {{ eq.tag }}</h2>
+    </div>
+    {% if user.role in ['manager', 'admin'] %}
+    <button class="btn btn-warning text-dark" data-bs-toggle="modal" data-bs-target="#addRepairModal">
+        <i class="fas fa-tools me-2"></i>Запланировать ремонт
+    </button>
+    {% endif %}
+</div>
+
+<!-- Info Card -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Информация об активе</span>
+        <span class="badge bg-{% if eq.status == 'operational' %}success{% elif eq.status == 'maintenance' %}warning{% else %}danger{% endif %} p-2">
+            {{ eq.status }}
+        </span>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <small class="text-white-50 d-block">Название</small>
+                <strong>{{ eq.name }}</strong>
+            </div>
+            <div class="col-md-4">
+                <small class="text-white-50 d-block">Тип</small>
+                <strong>{{ eq.type }}</strong>
+            </div>
+            <div class="col-md-4">
+                <small class="text-white-50 d-block">Предприятие</small>
+                <strong>{{ eq.enterprise.name if eq.enterprise else '-' }}</strong>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-4">
+                <small class="text-white-50 d-block">Посл. обслуживание</small>
+                <strong>{{ eq.last_maintenance.strftime('%d.%m.%Y %H:%M') if eq.last_maintenance else '-' }}</strong>
+            </div>
+            <div class="col-md-4">
+                <small class="text-white-50 d-block">Всего ремонтов</small>
+                <strong>{{ eq.repairs|length }}</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Repairs History -->
+<h4 class="mb-3">История ремонтов и ТО</h4>
+
+{% if not eq.repairs %}
+<div class="text-center py-5 text-muted bg-light rounded border border-dashed">
+    <i class="fas fa-clipboard-check fa-3x mb-3 opacity-50"></i>
+    <p>История ремонтов пуста</p>
+</div>
+{% else %}
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Дата начала</th>
+                        <th>Описание</th>
+                        <th>Исполнитель</th>
+                        <th>Стоимость</th>
+                        <th>Статус</th>
+                        <th>Завершен</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for repair in eq.repairs|sort(attribute='start_date', reverse=True) %}
+                    <tr>
+                        <td>{{ repair.start_date.strftime('%d.%m.%Y') }}</td>
+                        <td>{{ repair.description }}</td>
+                        <td>{{ repair.performed_by or '-' }}</td>
+                        <td>${{ repair.cost }}</td>
+                        <td>
+                            <span class="badge bg-{% if repair.status == 'completed' %}success{% elif repair.status == 'in_progress' %}primary{% else %}secondary{% endif %}">
+                                {{ repair.status }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if repair.end_date %}
+                            {{ repair.end_date.strftime('%d.%m.%Y') }}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if repair.status != 'completed' %}
+                            <form action="/repairs/{{ repair.id }}/update" method="post" class="d-inline">
+                                {% if repair.status == 'pending' %}
+                                <input type="hidden" name="status" value="in_progress">
+                                <button class="btn btn-sm btn-outline-primary" title="Начать">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                {% elif repair.status == 'in_progress' %}
+                                <input type="hidden" name="status" value="completed">
+                                <button class="btn btn-sm btn-outline-success" title="Завершить">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                {% endif %}
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Add Repair Modal -->
+<div class="modal fade" id="addRepairModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">Запланировать ремонт / ТО</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/equipment/{{ eq.id }}/repairs" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Описание работ</label>
+                        <textarea name="description" class="form-control" rows="3" required placeholder="Например: Замена масла, ремонт двигателя..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Исполнитель</label>
+                        <input type="text" name="performed_by" class="form-control" placeholder="ФИО сотрудника или подрядчик">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ориентировочная стоимость ($)</label>
+                        <input type="number" step="0.01" min="0" name="cost" class="form-control" value="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-warning text-dark">Запланировать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
